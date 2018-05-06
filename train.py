@@ -23,16 +23,6 @@ import matplotlib.pyplot as plt
 import pickle
 from keras import regularizers
 
-# img_path = 'test.png'
-# image.load_img('test.png', target_size=(224, 224))
-# test = image.img_to_array(test_img)
-# print (test.shape)
-# test = np.expand_dims(test, axis=0)
-# print (test.shape)
-# test = preprocess_input(test)
-# print('Input image shape:', test.shape)
-
-
 classes = {'background': 0, 'aeroplane': 1, 'bicycle': 2, 'bird': 3, 'boat': 4,
            'bottle': 5, 'bus': 6, 'car': 7, 'cat': 8,
            'chair': 9, 'cow': 10, 'diningtable': 11, 'dog': 12,
@@ -126,32 +116,6 @@ def load_data(filepath):
     return data
 
 
-def softmax_sparse_crossentropy_ignoring_last_label(y_true, y_pred):
-    y_pred = K.reshape(y_pred, (-1, K.int_shape(y_pred)[-1]))
-    log_softmax = tf.nn.log_softmax(y_pred)
-
-    y_true = K.one_hot(tf.to_int32(K.flatten(y_true)), K.int_shape(y_pred)[-1] + 1)
-    unpacked = tf.unstack(y_true, axis=-1)
-    y_true = tf.stack(unpacked[:-1], axis=-1)
-
-    cross_entropy = -K.sum(y_true * log_softmax, axis=1)
-    cross_entropy_mean = K.mean(cross_entropy)
-
-    return cross_entropy_mean
-
-
-def sparse_accuracy_ignoring_last_label(y_true, y_pred):
-    nb_classes = K.int_shape(y_pred)[-1]
-    y_pred = K.reshape(y_pred, (-1, nb_classes))
-
-    y_true = K.one_hot(tf.to_int32(K.flatten(y_true)),
-                       nb_classes + 1)
-    unpacked = tf.unstack(y_true, axis=-1)
-    legal_labels = ~tf.cast(unpacked[-1], tf.bool)
-    y_true = tf.stack(unpacked[:-1], axis=-1)
-
-    return K.sum(tf.to_float(legal_labels & K.equal(K.argmax(y_true, axis=-1), K.argmax(y_pred, axis=-1)))) / K.sum(
-        tf.to_float(legal_labels))
 
 def mean_IoU(y_true, y_pred):
     s = K.shape(y_true)
@@ -192,11 +156,6 @@ def IoU(y_true, y_pred):
     mean_iu = np.mean(TP / (TP + FP + FN))
     return mean_iu
 
-def depth_softmax(matrix):
-    sigmoid = lambda x: 1 / (1 + K.exp(-x))
-    sigmoided_matrix = sigmoid(matrix)
-    softmax_matrix = sigmoided_matrix / K.sum(sigmoided_matrix, axis=0)
-    return softmax_matrix
 
 # Loading train data in python
 root = os.getcwd()
@@ -363,7 +322,7 @@ model_8 = Model(image_input, new_layer)
 model_8.summary()
 
 # Using Resnet50 instead of VGG
-
+# (Not Completed)
 # model_res = ResNet50(input_tensor=image_input, include_top=True,weights='imagenet')
 
 # x = model_res.get_layer('activation_49').output
@@ -392,7 +351,6 @@ for layer in model_8.layers[:-11]:
 
 sgd = optimizers.SGD(lr=10e-4, decay=2e-5, momentum=0.9, nesterov=True)
 
-'''
 #model_32.compile(loss = 'categorical_crossentropy', optimizer = sgd, metrics = ['accuracy'])
 model_32.compile(loss = softmax_sparse_crossentropy_ignoring_last_label, optimizer = sgd, metrics = [sparse_accuracy_ignoring_last_label])
 
@@ -464,7 +422,7 @@ plt.xlabel('epoch')
 plt.legend(['train', 'test'], loc='upper left')
 #plt.show()
 plt.savefig('model_16_loss_up_tran.png', bbox_inches='tight')
-'''
+
 
 model_8.compile(loss='categorical_crossentropy', optimizer=sgd, metrics=[mean_IoU, 'accuracy'])
 
@@ -494,6 +452,7 @@ class_weight = {0: 1.,
                 20: 20.,
                 }
 '''
+
 filepath = "model_fcn_8s_tran_init.h5"
 checkpoint = ModelCheckpoint(filepath, monitor='val_acc', verbose=1, save_best_only=True, mode='max')
 callbacks_list = [checkpoint]
@@ -504,7 +463,7 @@ print('Training time: %s' % (t - time.time()))
 (loss, accuracy) = model_8.evaluate(X_fin_test, y_fin_test, batch_size=1, verbose=1)
 print("[INFO] loss={:.4f}, accuracy: {:.4f}%".format(loss, accuracy * 100))
 
-'''
+
 # summarize history for accuracy
 plt.plot(history.history['acc'])
 plt.plot(history.history['val_acc'])
@@ -524,7 +483,7 @@ plt.xlabel('epoch')
 plt.legend(['train', 'test'], loc='upper left')
 #plt.show()
 plt.savefig('model_8_loss_tran.png', bbox_inches='tight')
-'''
-# model_32.save("model_fcn32s_fin_tran.h5")
-# model_16.save("model_fcn16s_fin_tran.h5")
+
+model_32.save("model_fcn32s_fin_tran.h5")
+model_16.save("model_fcn16s_fin_tran.h5")
 model_8.save("model_fcn8s_fin_tran_init.h5")
